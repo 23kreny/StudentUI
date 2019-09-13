@@ -1,2 +1,2 @@
-# studentum
-Studentum app for accessing the Bakalari school system.
+# StudentUI
+App for accessing the Bakaláři school system.
