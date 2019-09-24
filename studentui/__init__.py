@@ -1,5 +1,5 @@
 import datetime
-import threading
+import json
 from contextlib import contextmanager
 
 import bakalib
@@ -43,6 +43,7 @@ class LoginDialog(QtWidgets.QDialog):
         self.ui.schoolCombo.clear()
         self.ui.lineUser.clear()
         self.ui.linePass.clear()
+        self.view_pass_handler()
 
         self.municipality = bakalib.Municipality()
 
@@ -83,10 +84,80 @@ class LoginDialog(QtWidgets.QDialog):
             with wait_cursor():
                 user = bakalib.Client(
                     username=username, password=password, domain=self.domain)
+            if self.ui.rememberBox.isChecked():
+                studentui.paths.auth_file.write_text(json.dumps({
+                    "username": user.username,
+                    "domain": user.domain,
+                    "perm_token": user.perm_token
+                }))
             self.login_send_client.emit(user)
         except bakalib.BakalibError as error:
             QtWidgets.QMessageBox.warning(None, "Error", str(error))
             self.ui.pushLogin.setEnabled(True)
+
+
+class ThreadUserInfo(QtCore.QThread):
+    send_info = QtCore.Signal(object)
+
+    def __init__(self, client):
+        super().__init__()
+        self.client = client
+
+    def run(self):
+        self.send_info.emit(self.client.info())
+
+
+class SelectorWindow(QtWidgets.QMainWindow):
+    send_client = QtCore.Signal(bakalib.Client)
+
+    def __init__(self, parent=None):
+        super().__init__(parent=parent)
+
+        self.ui = Ui_selectorWindow()
+        self.ui.setupUi(self)
+
+        self.login = LoginDialog()
+
+        if not studentui.paths.auth_file.is_file():
+            self.login.login_send_client.connect(self.run)
+            self.login.show()
+        else:
+            auth_file = json.loads(studentui.paths.auth_file.read_text())
+            client = bakalib.Client(
+                username=auth_file["username"], domain=auth_file["domain"], perm_token=auth_file["perm_token"])
+            self.run(client)
+
+    def run(self, client):
+        self.login.close()
+
+        self.timetable_window = TimetableWindow(client=client)
+        # self.grades_window = GradesWindow(client=client)
+        # self.absence_window = AbsenceWindow(client=client)
+
+        self.ui.pushTimetable.clicked.connect(
+            lambda: self.timetable_window.show())
+        self.ui.pushGrades.clicked.connect(
+            lambda: QtWidgets.QMessageBox.information(self, "WIP", "Něco tu chybí"))
+        self.ui.pushAbsence.clicked.connect(
+            lambda: QtWidgets.QMessageBox.information(self, "WIP", "Něco tu chybí"))
+        self.ui.pushLogout.clicked.connect(self.logout)
+
+        self.info_thread = ThreadUserInfo(client)
+        self.info_thread.start()
+        self.info_thread.send_info.connect(self.update_info)
+
+        self.show()
+
+    def update_info(self, info):
+        self.ui.labelName.setText(info.name.rstrip(", {}".format(info.class_)))
+        self.ui.labelClass.setText(info.class_)
+        self.ui.labelSchool.setText(info.school)
+
+    def logout(self):
+        studentui.paths.auth_file.unlink()
+        self.login.clear()
+        self.login.open()
+        self.close()
 
 
 class TimetableWindow(QtWidgets.QMainWindow):
@@ -99,9 +170,6 @@ class TimetableWindow(QtWidgets.QMainWindow):
         self.ui.Timetable.setSizeAdjustPolicy(
             QtWidgets.QAbstractScrollArea.AdjustToContents)
 
-        today = datetime.date.today()
-        self.date = today + datetime.timedelta(days=-today.weekday(), weeks=1)
-
         self.client = client
         self.client.add_modules("timetable")
 
@@ -109,42 +177,15 @@ class TimetableWindow(QtWidgets.QMainWindow):
         self.ui.pushPrev.clicked.connect(self.prev)
         self.ui.Timetable.cellClicked.connect(self.cell_click)
 
-        self.thread = threading.Thread(target=self.client.timetable.this_week)
-        self.thread.start()
-        self.thread.join()
-
-        self.next_thread = threading.Thread()
-        self.prev_thread = threading.Thread()
-
         self.build_timetable(self.client.timetable.this_week())
 
-        self.thread1 = threading.Thread(target=self.client.timetable.date_week, args=(
-            self.date + datetime.timedelta(7),))
-        self.thread2 = threading.Thread(target=self.client.timetable.date_week, args=(
-            self.date - datetime.timedelta(7),))
-
-        self.thread1.start()
-        self.thread2.start()
-
     def next(self):
-        self.date = self.date + datetime.timedelta(7)
-        if self.next_thread.is_alive():
-            with wait_cursor():
-                self.next_thread.join()
-        self.build_timetable(self.client.timetable.date_week(self.date))
-        self.next_thread = threading.Thread(target=self.client.timetable.date_week, args=(
-            self.date + datetime.timedelta(7),))
-        self.next_thread.start()
+        with wait_cursor():
+            self.build_timetable(self.client.timetable.next_week())
 
     def prev(self):
-        self.date = self.date - datetime.timedelta(7)
-        if self.prev_thread.is_alive():
-            with wait_cursor():
-                self.prev_thread.join()
-        self.build_timetable(self.client.timetable.date_week(self.date))
-        self.prev_thread = threading.Thread(target=self.client.timetable.date_week, args=(
-            self.date - datetime.timedelta(7),))
-        self.prev_thread.start()
+        with wait_cursor():
+            self.build_timetable(self.client.timetable.prev_week())
 
     def build_timetable(self, timetable):
         self.ui.Timetable.setRowCount(len(timetable.days))
@@ -188,69 +229,6 @@ class TimetableWindow(QtWidgets.QMainWindow):
                 self, "Detaily", "\n".join(details))
         except AttributeError:
             pass
-
-
-class ThreadUserInfo(QtCore.QThread):
-    send_info = QtCore.Signal(object)
-
-    def __init__(self, client):
-        super().__init__()
-        self.client = client
-
-    def run(self):
-        self.send_info.emit(self.client.info())
-
-
-class SelectorWindow(QtWidgets.QMainWindow):
-    send_client = QtCore.Signal(bakalib.Client)
-
-    def __init__(self, parent=None):
-        super().__init__(parent=parent)
-
-        self.ui = Ui_selectorWindow()
-        self.ui.setupUi(self)
-
-        if not studentui.paths.auth_file.is_file():
-            self.login = LoginDialog()
-            self.login.login_send_client.connect(self.run)
-            self.login.show()
-
-    def run(self, client):
-        self.login.close()
-
-        self.timetable_window = TimetableWindow(client=client)
-        #self.grades_window = GradesWindow(client=client)
-        #self.absence_window = AbsenceWindow(client=client)
-
-        self.ui.pushTimetable.clicked.connect(self.run_timetable)
-        self.ui.pushGrades.clicked.connect(self.run_grades)
-        self.ui.pushAbsence.clicked.connect(self.run_absence)
-        self.ui.pushLogout.clicked.connect(self.logout)
-
-        self.info_thread = ThreadUserInfo(client)
-        self.info_thread.start()
-        self.info_thread.send_info.connect(self.update_info)
-
-        self.show()
-
-    def update_info(self, info):
-        self.ui.labelName.setText(info.name.rstrip(", {}".format(info.class_)))
-        self.ui.labelClass.setText(info.class_)
-        self.ui.labelSchool.setText(info.school)
-
-    def logout(self):
-        self.login.clear()
-        self.login.open()
-        self.close()
-
-    def run_timetable(self):
-        self.timetable_window.show()
-
-    def run_grades(self):
-        QtWidgets.QMessageBox.information(self, "WIP", "Něco tu chybí")
-
-    def run_absence(self):
-        QtWidgets.QMessageBox.information(self, "WIP", "Něco tu chybí")
 
 
 def main():
