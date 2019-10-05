@@ -1,6 +1,6 @@
 #!/bin/bash
 
-pyside2-uic login.ui -o ui_login.py
-pyside2-uic selector.ui -o ui_selector.py
-pyside2-uic timetable.ui -o ui_timetable.py
-pyside2-uic users.ui -o ui_users.py
+pyside2-uic studentui/ui/login.ui -o studentui/ui_login.py
+pyside2-uic studentui/ui/selector.ui -o studentui/ui_selector.py
+pyside2-uic studentui/ui/timetable.ui -o studentui/ui_timetable.py
+pyside2-uic studentui/ui/grades.ui -o studentui/ui_grades.py

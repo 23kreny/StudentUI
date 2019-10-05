@@ -1,9 +1,9 @@
 # -*- coding: utf-8 -*-
 
-# Form implementation generated from reading ui file 'timetable.ui',
-# licensing of 'timetable.ui' applies.
+# Form implementation generated from reading ui file 'studentui/ui/timetable.ui',
+# licensing of 'studentui/ui/timetable.ui' applies.
 #
-# Created: Mon Sep 23 16:39:19 2019
+# Created: Fri Oct  4 22:12:12 2019
 #      by: pyside2-uic  running on PySide2 5.13.1
 #
 # WARNING! All changes made in this file will be lost!

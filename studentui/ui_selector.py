@@ -1,9 +1,9 @@
 # -*- coding: utf-8 -*-
 
-# Form implementation generated from reading ui file 'selector.ui',
-# licensing of 'selector.ui' applies.
+# Form implementation generated from reading ui file 'studentui/ui/selector.ui',
+# licensing of 'studentui/ui/selector.ui' applies.
 #
-# Created: Mon Sep 23 16:39:19 2019
+# Created: Fri Oct  4 22:12:12 2019
 #      by: pyside2-uic  running on PySide2 5.13.1
 #
 # WARNING! All changes made in this file will be lost!

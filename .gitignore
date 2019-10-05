@@ -1,5 +1,4 @@
 build
 dist
-venv
-studentui/__pycache__/
 studentui.egg-info
+studentui/__pycache__/

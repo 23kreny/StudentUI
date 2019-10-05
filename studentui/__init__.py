@@ -4,11 +4,14 @@ from contextlib import contextmanager
 
 import bakalib
 from PySide2 import QtCore, QtGui, QtWidgets
-
+import dataclasses
 import studentui.paths
 from studentui.ui_login import Ui_loginDialog
 from studentui.ui_selector import Ui_selectorWindow
 from studentui.ui_timetable import Ui_timetableWindow
+from studentui.ui_grades import Ui_gradesWindow
+
+name = "studentui"
 
 
 @contextmanager
@@ -49,21 +52,20 @@ class LoginDialog(QtWidgets.QDialog):
 
         self.ui.cityCombo.clear()
         self.ui.cityCombo.addItems(
-            [city.name for city in self.municipality.cities])
+            [city.name for city in self.municipality.municipality().cities])
         self.ui.cityCombo.currentIndexChanged.connect(self.select_city_handler)
         self.select_city_handler()
         self.select_school_handler()
 
     def select_city_handler(self):
         self.ui.schoolCombo.clear()
-        school_list = [
-            school.name for school in self.municipality.cities[self.ui.cityCombo.currentIndex()].schools]
-        self.ui.schoolCombo.addItems(school_list)
+        self.ui.schoolCombo.addItems([
+            school.name for school in self.municipality.municipality().cities[self.ui.cityCombo.currentIndex()].schools])
         self.ui.schoolCombo.currentIndexChanged.connect(
             self.select_school_handler)
 
     def select_school_handler(self):
-        self.domain = self.municipality \
+        self.domain = self.municipality.municipality() \
             .cities[self.ui.cityCombo.currentIndex()] \
             .schools[self.ui.schoolCombo.currentIndex()] \
             .domain
@@ -83,7 +85,8 @@ class LoginDialog(QtWidgets.QDialog):
             password = self.ui.linePass.text()
             with wait_cursor():
                 user = bakalib.Client(
-                    username=username, password=password, domain=self.domain)
+                    username=username, password=password, domain=self.domain
+                )
             if self.ui.rememberBox.isChecked():
                 studentui.paths.auth_file.write_text(json.dumps({
                     "username": user.username,
@@ -94,17 +97,6 @@ class LoginDialog(QtWidgets.QDialog):
         except bakalib.BakalibError as error:
             QtWidgets.QMessageBox.warning(None, "Error", str(error))
             self.ui.pushLogin.setEnabled(True)
-
-
-class ThreadUserInfo(QtCore.QThread):
-    send_info = QtCore.Signal(object)
-
-    def __init__(self, client):
-        super().__init__()
-        self.client = client
-
-    def run(self):
-        self.send_info.emit(self.client.info())
 
 
 class SelectorWindow(QtWidgets.QMainWindow):
@@ -127,26 +119,21 @@ class SelectorWindow(QtWidgets.QMainWindow):
                 username=auth_file["username"], domain=auth_file["domain"], perm_token=auth_file["perm_token"])
             self.run(client)
 
-    def run(self, client):
+    def run(self, client: bakalib.Client):
         self.login.close()
+        self.show()
 
         self.timetable_window = TimetableWindow(client=client)
-        # self.grades_window = GradesWindow(client=client)
+        self.grades_window = GradesWindow(client=client)
         # self.absence_window = AbsenceWindow(client=client)
 
-        self.ui.pushTimetable.clicked.connect(
-            lambda: self.timetable_window.show())
-        self.ui.pushGrades.clicked.connect(
-            lambda: QtWidgets.QMessageBox.information(self, "WIP", "Něco tu chybí"))
+        self.ui.pushTimetable.clicked.connect(lambda: self.timetable_window.show())
+        self.ui.pushGrades.clicked.connect(lambda: self.grades_window.show())
         self.ui.pushAbsence.clicked.connect(
             lambda: QtWidgets.QMessageBox.information(self, "WIP", "Něco tu chybí"))
         self.ui.pushLogout.clicked.connect(self.logout)
 
-        self.info_thread = ThreadUserInfo(client)
-        self.info_thread.start()
-        self.info_thread.send_info.connect(self.update_info)
-
-        self.show()
+        self.update_info(client.info())
 
     def update_info(self, info):
         self.ui.labelName.setText(info.name.rstrip(", {}".format(info.class_)))
@@ -161,7 +148,7 @@ class SelectorWindow(QtWidgets.QMainWindow):
 
 
 class TimetableWindow(QtWidgets.QMainWindow):
-    def __init__(self, parent=None, client=None):
+    def __init__(self, parent=None, client: bakalib.Client=None):
         super().__init__(parent=parent)
 
         self.ui = Ui_timetableWindow()
@@ -222,11 +209,61 @@ class TimetableWindow(QtWidgets.QMainWindow):
     def cell_click(self, row, col):
         try:
             item = self.ui.Timetable.item(row, col).details
-            details = [item.name, item.theme, item.teacher, item.room if item.room else item.room_abbr,
+            details = [item.name, item.theme, item.teacher,
+                       item.room if item.room else item.room_abbr,
                        item.change_description if item.change_description else None]
             details = [detail for detail in details if detail is not None]
             QtWidgets.QMessageBox.information(
                 self, "Detaily", "\n".join(details))
+        except AttributeError:
+            pass
+
+
+class GradesWindow(QtWidgets.QMainWindow):
+    def __init__(self, parent=None, client: bakalib.Client=None):
+        super().__init__(parent=parent)
+        
+        self.ui = Ui_gradesWindow()
+        self.ui.setupUi(self)
+
+        self.client = client
+        self.client.add_modules("grades")
+
+        self.ui.treeGrades.itemClicked.connect(self.item_click)
+
+        self.build_tree()
+
+    def build_tree(self):
+        self.ui.treeGrades.clear()
+        self.ui.listDetails.clear()
+
+        for subject in self.client.grades.grades().subjects:
+            item_subject = QtWidgets.QTreeWidgetItem(self.ui.treeGrades)
+            item_subject.setText(0, subject.name)
+            for grade in subject.grades:
+                item_grade = QtWidgets.QTreeWidgetItem(item_subject)
+                item_grade.setText(0, grade.grade)
+                item_grade.details = grade
+
+    def item_click(self, item):
+        self.ui.listDetails.clear()
+        try:
+            item = item.details
+            details = {
+                "Subject": item.subject,
+                "Caption": item.caption,
+                "Description": item.description,
+                "Note": item.note,
+                "Weight": item.weight,
+                "Date": datetime.datetime.strptime(
+                    item.date, "%y%m%d").strftime("%x")
+                    if item.date else None,
+                "Date granted": datetime.datetime.strptime(
+                    item.date_granted, "%y%m%d%H%M").strftime("%x, %X")
+                    if item.date_granted else None,
+            }
+            details = ["{}: {}".format(k, v) for k, v in details.items() if v]
+            self.ui.listDetails.addItems(details)
         except AttributeError:
             pass
 
