@@ -2,3 +2,4 @@ build
 dist
 studentui.egg-info
 studentui/__pycache__/
+.eggs

@@ -11,6 +11,13 @@ from studentui.ui_selector import Ui_selectorWindow
 from studentui.ui_timetable import Ui_timetableWindow
 from studentui.ui_grades import Ui_gradesWindow
 
+
+def handler(msg_type, msg_log_context, msg_string):
+    pass
+
+QtCore.qInstallMessageHandler(handler)
+
+
 name = "studentui"
 
 
@@ -177,6 +184,11 @@ class TimetableWindow(QtWidgets.QMainWindow):
     def build_timetable(self, timetable):
         self.ui.Timetable.setRowCount(len(timetable.days))
         self.ui.Timetable.setColumnCount(len(timetable.days[0].lessons))
+        
+        for column in range(self.ui.Timetable.columnCount()):
+            for row in range(self.ui.Timetable.rowCount()):
+                self.ui.Timetable.setSpan(row, column, 1, 1)
+
         self.ui.Timetable.setVerticalHeaderLabels([
             "{}\n{}".format(day.abbr, datetime.datetime
                             .strftime(datetime.datetime
@@ -191,20 +203,34 @@ class TimetableWindow(QtWidgets.QMainWindow):
 
         for i, day in enumerate(timetable.days):
             for x, lesson in enumerate(day.lessons):
-                if not lesson.type == "X":
+                if lesson.type == "X" or lesson.type == "A":
+                    if not lesson.name_alt:
+                        if lesson.holiday:
+                            item = QtWidgets.QTableWidgetItem(lesson.holiday)
+                            item.setBackground(QtGui.QColor(99, 151, 184))
+                            item.setTextAlignment(1)
+                            self.ui.Timetable.setSpan(i, x, 1, self.ui.Timetable.columnCount())
+                        else:
+                            item = QtWidgets.QTableWidgetItem("")
+                    else:
+                        item = QtWidgets.QTableWidgetItem(lesson.name_alt)
+                        item.setBackground(QtGui.QColor(99, 151, 184))
+                        item.setTextAlignment(1)
+                        self.ui.Timetable.setSpan(i, x, 1, self.ui.Timetable.columnCount())
+                else:
                     item = QtWidgets.QTableWidgetItem("{}\n{}\n{}".format(
                         lesson.abbr, lesson.teacher_abbr, lesson.room_abbr))
-                    if lesson.change_description is not None:
+                    if lesson.change_description:
                         item.setBackground(QtGui.QColor(255, 0, 0))
                     item.details = lesson
-                else:
-                    item = QtWidgets.QTableWidgetItem("")
                 item.setFlags(QtCore.Qt.ItemIsEnabled)
                 item.setTextAlignment(QtCore.Qt.AlignCenter)
                 self.ui.Timetable.setItem(i, x, item)
 
-        self.ui.Timetable.resizeColumnsToContents()
-        self.ui.Timetable.resizeRowsToContents()
+        for column in range(self.ui.Timetable.columnCount()):
+            self.ui.Timetable.setColumnWidth(column, 88)
+        for row in range(self.ui.Timetable.rowCount()):
+            self.ui.Timetable.setRowHeight(row, 64)
 
     def cell_click(self, row, col):
         try:
