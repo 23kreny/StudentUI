@@ -15,6 +15,7 @@ from studentui.ui_grades import Ui_gradesWindow
 def handler(msg_type, msg_log_context, msg_string):
     pass
 
+
 QtCore.qInstallMessageHandler(handler)
 
 
@@ -24,8 +25,7 @@ name = "studentui"
 @contextmanager
 def wait_cursor():
     try:
-        QtWidgets.QApplication.setOverrideCursor(
-            QtGui.QCursor((QtCore.Qt.WaitCursor)))
+        QtWidgets.QApplication.setOverrideCursor(QtGui.QCursor((QtCore.Qt.WaitCursor)))
         yield
     finally:
         QtWidgets.QApplication.restoreOverrideCursor()
@@ -59,23 +59,31 @@ class LoginDialog(QtWidgets.QDialog):
 
         self.ui.cityCombo.clear()
         self.ui.cityCombo.addItems(
-            [city.name for city in self.municipality.municipality().cities])
+            [city.name for city in self.municipality.municipality().cities]
+        )
         self.ui.cityCombo.currentIndexChanged.connect(self.select_city_handler)
         self.select_city_handler()
         self.select_school_handler()
 
     def select_city_handler(self):
         self.ui.schoolCombo.clear()
-        self.ui.schoolCombo.addItems([
-            school.name for school in self.municipality.municipality().cities[self.ui.cityCombo.currentIndex()].schools])
-        self.ui.schoolCombo.currentIndexChanged.connect(
-            self.select_school_handler)
+        self.ui.schoolCombo.addItems(
+            [
+                school.name
+                for school in self.municipality.municipality()
+                .cities[self.ui.cityCombo.currentIndex()]
+                .schools
+            ]
+        )
+        self.ui.schoolCombo.currentIndexChanged.connect(self.select_school_handler)
 
     def select_school_handler(self):
-        self.domain = self.municipality.municipality() \
-            .cities[self.ui.cityCombo.currentIndex()] \
-            .schools[self.ui.schoolCombo.currentIndex()] \
+        self.domain = (
+            self.municipality.municipality()
+            .cities[self.ui.cityCombo.currentIndex()]
+            .schools[self.ui.schoolCombo.currentIndex()]
             .domain
+        )
 
     def view_pass_handler(self):
         shown = QtWidgets.QLineEdit.EchoMode.Normal
@@ -95,11 +103,15 @@ class LoginDialog(QtWidgets.QDialog):
                     username=username, password=password, domain=self.domain
                 )
             if self.ui.rememberBox.isChecked():
-                studentui.paths.auth_file.write_text(json.dumps({
-                    "username": user.username,
-                    "domain": user.domain,
-                    "perm_token": user.perm_token
-                }))
+                studentui.paths.auth_file.write_text(
+                    json.dumps(
+                        {
+                            "username": user.username,
+                            "domain": user.domain,
+                            "perm_token": user.perm_token,
+                        }
+                    )
+                )
             self.login_send_client.emit(user)
         except bakalib.BakalibError as error:
             QtWidgets.QMessageBox.warning(None, "Error", str(error))
@@ -123,7 +135,10 @@ class SelectorWindow(QtWidgets.QMainWindow):
         else:
             auth_file = json.loads(studentui.paths.auth_file.read_text())
             client = bakalib.Client(
-                username=auth_file["username"], domain=auth_file["domain"], perm_token=auth_file["perm_token"])
+                username=auth_file["username"],
+                domain=auth_file["domain"],
+                perm_token=auth_file["perm_token"],
+            )
             self.run(client)
 
     def run(self, client: bakalib.Client):
@@ -137,7 +152,8 @@ class SelectorWindow(QtWidgets.QMainWindow):
         self.ui.pushTimetable.clicked.connect(lambda: self.timetable_window.show())
         self.ui.pushGrades.clicked.connect(lambda: self.grades_window.show())
         self.ui.pushAbsence.clicked.connect(
-            lambda: QtWidgets.QMessageBox.information(self, "WIP", "Něco tu chybí"))
+            lambda: QtWidgets.QMessageBox.information(self, "WIP", "Něco tu chybí")
+        )
         self.ui.pushLogout.clicked.connect(self.logout)
 
         self.update_info(client.info())
@@ -155,14 +171,15 @@ class SelectorWindow(QtWidgets.QMainWindow):
 
 
 class TimetableWindow(QtWidgets.QMainWindow):
-    def __init__(self, parent=None, client: bakalib.Client=None):
+    def __init__(self, parent=None, client: bakalib.Client = None):
         super().__init__(parent=parent)
 
         self.ui = Ui_timetableWindow()
         self.ui.setupUi(self)
 
         self.ui.Timetable.setSizeAdjustPolicy(
-            QtWidgets.QAbstractScrollArea.AdjustToContents)
+            QtWidgets.QAbstractScrollArea.AdjustToContents
+        )
 
         self.client = client
         self.client.add_modules("timetable")
@@ -183,43 +200,62 @@ class TimetableWindow(QtWidgets.QMainWindow):
 
     def build_timetable(self, timetable):
         self.ui.Timetable.setRowCount(len(timetable.days))
-        self.ui.Timetable.setColumnCount(len(timetable.days[0].lessons))
-        
+        self.ui.Timetable.setColumnCount(len(max(timetable.days, key=len).lessons))
+
         for column in range(self.ui.Timetable.columnCount()):
             for row in range(self.ui.Timetable.rowCount()):
                 self.ui.Timetable.setSpan(row, column, 1, 1)
 
-        self.ui.Timetable.setVerticalHeaderLabels([
-            "{}\n{}".format(day.abbr, datetime.datetime
-                            .strftime(datetime.datetime
-                                      .strptime(day.date, "%Y%m%d"), "%x"))
-            for day in timetable.days
-        ])
-        self.ui.Timetable.setHorizontalHeaderLabels([
-            "{}\n{} - {}".format(header.caption, header.time_begin, header.time_end) for header in timetable.headers
-        ])
+        self.ui.Timetable.setVerticalHeaderLabels(
+            [
+                "{}\n{}".format(
+                    day.abbr,
+                    datetime.datetime.strftime(
+                        datetime.datetime.strptime(day.date, "%Y%m%d"), "%x"
+                    ),
+                )
+                for day in timetable.days
+            ]
+        )
+        self.ui.Timetable.setHorizontalHeaderLabels(
+            [
+                "{}\n{} - {}".format(header.caption, header.time_begin, header.time_end)
+                for header in timetable.headers
+            ]
+        )
 
         self.ui.menuWeek.setTitle(timetable.cycle_name.capitalize())
 
         for i, day in enumerate(timetable.days):
             for x, lesson in enumerate(day.lessons):
                 if lesson.type == "X" or lesson.type == "A":
-                    if not lesson.name_alt:
+                    if lesson.change_description:
+                        item = QtWidgets.QTableWidgetItem(lesson.name)
+                        item.setBackground(QtGui.QColor(255, 0, 0))
+                        item.details = lesson
+                    elif not lesson.name_alt:
                         if lesson.holiday:
                             item = QtWidgets.QTableWidgetItem(lesson.holiday)
                             item.setBackground(QtGui.QColor(99, 151, 184))
                             item.setTextAlignment(1)
-                            self.ui.Timetable.setSpan(i, x, 1, self.ui.Timetable.columnCount())
+                            self.ui.Timetable.setSpan(
+                                i, x, 1, self.ui.Timetable.columnCount()
+                            )
                         else:
                             item = QtWidgets.QTableWidgetItem("")
                     else:
                         item = QtWidgets.QTableWidgetItem(lesson.name_alt)
                         item.setBackground(QtGui.QColor(99, 151, 184))
                         item.setTextAlignment(1)
-                        self.ui.Timetable.setSpan(i, x, 1, self.ui.Timetable.columnCount())
+                        self.ui.Timetable.setSpan(
+                            i, x, 1, self.ui.Timetable.columnCount()
+                        )
                 else:
-                    item = QtWidgets.QTableWidgetItem("{}\n{}\n{}".format(
-                        lesson.abbr, lesson.teacher_abbr, lesson.room_abbr))
+                    item = QtWidgets.QTableWidgetItem(
+                        "{}\n{}\n{}".format(
+                            lesson.abbr, lesson.teacher_abbr, lesson.room_abbr
+                        )
+                    )
                     if lesson.change_description:
                         item.setBackground(QtGui.QColor(255, 0, 0))
                     item.details = lesson
@@ -235,20 +271,23 @@ class TimetableWindow(QtWidgets.QMainWindow):
     def cell_click(self, row, col):
         try:
             item = self.ui.Timetable.item(row, col).details
-            details = [item.name, item.theme, item.teacher,
-                       item.room if item.room else item.room_abbr,
-                       item.change_description if item.change_description else None]
+            details = [
+                item.name,
+                item.theme,
+                item.teacher,
+                item.room if item.room else item.room_abbr,
+                item.change_description if item.change_description else None,
+            ]
             details = [detail for detail in details if detail is not None]
-            QtWidgets.QMessageBox.information(
-                self, "Detaily", "\n".join(details))
+            QtWidgets.QMessageBox.information(self, "Detaily", "\n".join(details))
         except AttributeError:
             pass
 
 
 class GradesWindow(QtWidgets.QMainWindow):
-    def __init__(self, parent=None, client: bakalib.Client=None):
+    def __init__(self, parent=None, client: bakalib.Client = None):
         super().__init__(parent=parent)
-        
+
         self.ui = Ui_gradesWindow()
         self.ui.setupUi(self)
 
@@ -281,12 +320,14 @@ class GradesWindow(QtWidgets.QMainWindow):
                 "Description": item.description,
                 "Note": item.note,
                 "Weight": item.weight,
-                "Date": datetime.datetime.strptime(
-                    item.date, "%y%m%d").strftime("%x")
-                    if item.date else None,
+                "Date": datetime.datetime.strptime(item.date, "%y%m%d").strftime("%x")
+                if item.date
+                else None,
                 "Date granted": datetime.datetime.strptime(
-                    item.date_granted, "%y%m%d%H%M").strftime("%x, %X")
-                    if item.date_granted else None,
+                    item.date_granted, "%y%m%d%H%M"
+                ).strftime("%x, %X")
+                if item.date_granted
+                else None,
             }
             details = ["{}: {}".format(k, v) for k, v in details.items() if v]
             self.ui.listDetails.addItems(details)
@@ -296,6 +337,7 @@ class GradesWindow(QtWidgets.QMainWindow):
 
 def main():
     import sys
+
     app = QtWidgets.QApplication(sys.argv)
     window = SelectorWindow()
     sys.exit(app.exec_())
