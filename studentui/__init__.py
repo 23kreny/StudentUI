@@ -1,15 +1,15 @@
+import dataclasses
 import datetime
 import json
 from contextlib import contextmanager
 
 import bakalib
-from PySide2 import QtCore, QtGui, QtWidgets
-import dataclasses
 import studentui.paths
+from PySide2 import QtCore, QtGui, QtWidgets
+from studentui.ui_grades import Ui_gradesWindow
 from studentui.ui_login import Ui_loginDialog
 from studentui.ui_selector import Ui_selectorWindow
 from studentui.ui_timetable import Ui_timetableWindow
-from studentui.ui_grades import Ui_gradesWindow
 
 
 def handler(msg_type, msg_log_context, msg_string):
@@ -200,7 +200,7 @@ class TimetableWindow(QtWidgets.QMainWindow):
 
     def build_timetable(self, timetable):
         self.ui.Timetable.setRowCount(len(timetable.days))
-        self.ui.Timetable.setColumnCount(len(max(timetable.days, key=len).lessons))
+        self.ui.Timetable.setColumnCount(len(timetable.headers))
 
         for column in range(self.ui.Timetable.columnCount()):
             for row in range(self.ui.Timetable.rowCount()):
@@ -233,23 +233,15 @@ class TimetableWindow(QtWidgets.QMainWindow):
                         item = QtWidgets.QTableWidgetItem(lesson.name)
                         item.setBackground(QtGui.QColor(255, 0, 0))
                         item.details = lesson
-                    elif not lesson.name_alt:
-                        if lesson.holiday:
-                            item = QtWidgets.QTableWidgetItem(lesson.holiday)
-                            item.setBackground(QtGui.QColor(99, 151, 184))
-                            item.setTextAlignment(1)
-                            self.ui.Timetable.setSpan(
-                                i, x, 1, self.ui.Timetable.columnCount()
-                            )
-                        else:
-                            item = QtWidgets.QTableWidgetItem("")
-                    else:
-                        item = QtWidgets.QTableWidgetItem(lesson.name_alt)
+                    elif lesson.holiday:
+                        item = QtWidgets.QTableWidgetItem(lesson.holiday)
                         item.setBackground(QtGui.QColor(99, 151, 184))
                         item.setTextAlignment(1)
                         self.ui.Timetable.setSpan(
                             i, x, 1, self.ui.Timetable.columnCount()
                         )
+                    else:
+                        item = QtWidgets.QTableWidgetItem("")
                 else:
                     item = QtWidgets.QTableWidgetItem(
                         "{}\n{}\n{}".format(

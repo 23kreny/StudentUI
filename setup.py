@@ -5,7 +5,7 @@ with open("README.md", "r", encoding="utf-8") as readme:
 
 setuptools.setup(
     name="studentui",
-    version="0.2.2",
+    version="0.2.3",
     author="kreny",
     author_email="kronerm9@gmail.com",
     description="A simple Qt application for fast access to Bakaláři school system.",
