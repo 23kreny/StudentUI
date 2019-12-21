@@ -1,4 +1,3 @@
 {
     "python.formatting.provider": "black",
-    "python.pythonPath": "/home/kreny/.pyenv/py3.7_studentui/bin/python"
 }

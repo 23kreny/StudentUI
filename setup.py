@@ -5,7 +5,7 @@ with open("README.md", "r", encoding="utf-8") as readme:
 
 setup(
     name="studentui",
-    version="0.3.0",
+    version="0.3.1",
     author="kreny",
     author_email="kronerm9@gmail.com",
     description="A simple Qt application for fast access to Bakaláři school system.",
@@ -20,5 +20,5 @@ setup(
         "Operating System :: OS Independent",
     ],
     python_requires=">=3.6",
-    install_requires=["PySide2", "bakalib >= 1.0.2"],
+    install_requires=["PySide2", "bakalib >= 1.0.4"],
 )
