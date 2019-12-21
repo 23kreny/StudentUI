@@ -3,8 +3,8 @@
 # Form implementation generated from reading ui file 'studentui/ui/login.ui',
 # licensing of 'studentui/ui/login.ui' applies.
 #
-# Created: Fri Oct  4 22:12:12 2019
-#      by: pyside2-uic  running on PySide2 5.13.1
+# Created: Wed Dec 18 19:45:52 2019
+#      by: pyside2-uic  running on PySide2 5.13.2
 #
 # WARNING! All changes made in this file will be lost!
 
