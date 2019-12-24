@@ -1,5 +1,3 @@
-from __future__ import absolute_import
-
 import dataclasses
 import datetime
 import json
@@ -12,7 +10,7 @@ from bakalib.modules import Grades, Timetable
 from bakalib.utils import BakalibError
 from PySide2 import QtCore, QtGui, QtWidgets
 
-from . import paths
+from . import paths, version
 from .ui_grades import Ui_gradesWindow
 from .ui_login import Ui_loginDialog
 from .ui_selector import Ui_selectorWindow

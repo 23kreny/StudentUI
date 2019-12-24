@@ -1,11 +1,12 @@
-from setuptools import setup, find_packages
+from setuptools import find_packages, setup
+from studentui import version
 
 with open("README.md", "r", encoding="utf-8") as readme:
     long_description = readme.read()
 
 setup(
     name="studentui",
-    version="0.3.1",
+    version=version,
     author="kreny",
     author_email="kronerm9@gmail.com",
     description="A simple Qt application for fast access to Bakaláři school system.",
