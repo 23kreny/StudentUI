@@ -43,6 +43,11 @@ class LoginDialog(QtWidgets.QDialog):
         self.ui = Ui_loginDialog()
         self.ui.setupUi(self)
 
+        try:
+            self.municipality = Municipality()
+        except BakalibError as error:
+            QtWidgets.QMessageBox.warning(None, "Error", f"{error}")
+
         self.clear()
 
         self.ui.showpassBox.clicked.connect(self.view_pass_handler)
@@ -58,8 +63,6 @@ class LoginDialog(QtWidgets.QDialog):
         self.ui.lineUser.clear()
         self.ui.linePass.clear()
         self.view_pass_handler()
-
-        self.municipality = Municipality()
 
         self.ui.cityCombo.clear()
         self.ui.cityCombo.addItems(
