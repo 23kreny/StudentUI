@@ -4,13 +4,15 @@ import json
 from contextlib import contextmanager
 from enum import Enum
 
+from bakalib import version as bakalib_version
 from bakalib.core import Client
 from bakalib.extra import Municipality
 from bakalib.modules import Grades, Timetable
 from bakalib.utils import BakalibError
 from PySide2 import QtCore, QtGui, QtWidgets
 
-from . import paths, version
+from . import paths
+from . import version as sui_version
 from .ui_grades import Ui_gradesWindow
 from .ui_login import Ui_loginDialog
 from .ui_selector import Ui_selectorWindow
@@ -155,11 +157,15 @@ class SelectorWindow(QtWidgets.QMainWindow):
         )
         self.ui.pushLogout.clicked.connect(self.logout)
 
+        self.ui.labelSUIVersion.setText(f"StudentUI version: {sui_version}")
+        self.ui.labelBakalibVersion.setText(f"Bakalib version: {bakalib_version}")
+
         self.update_info(client.info())
 
     def update_info(self, info):
-        self.ui.labelName.setText(info.name.rstrip(", {}".format(info.class_)))
-        self.ui.labelClass.setText(info.class_)
+        self.ui.labelNameClass.setText(
+            info.name.rstrip(f", {info.class_}") + f", {info.class_}"
+        )
         self.ui.labelSchool.setText(info.school)
 
     def logout(self):
@@ -229,7 +235,7 @@ class TimetableWindow(QtWidgets.QMainWindow):
                 if lesson.type == "X" or lesson.type == "A":
                     if lesson.change_description:
                         item = QtWidgets.QTableWidgetItem(lesson.name)
-                        item.setBackground(QtGui.QColor(255, 0, 0))
+                        item.setBackground(QtGui.QColor(184, 0, 0))
                         item.details = lesson
                     elif lesson.holiday:
                         item = QtWidgets.QTableWidgetItem(lesson.holiday)
@@ -242,12 +248,20 @@ class TimetableWindow(QtWidgets.QMainWindow):
                         item = QtWidgets.QTableWidgetItem("")
                 else:
                     item = QtWidgets.QTableWidgetItem(
-                        "{}\n{}\n{}".format(
-                            lesson.abbr, lesson.teacher_abbr, lesson.room_abbr
+                        "\n".join(
+                            [
+                                i
+                                for i in [
+                                    lesson.abbr,
+                                    lesson.teacher_abbr,
+                                    lesson.room_abbr,
+                                ]
+                                if i
+                            ]
                         )
                     )
                     if lesson.change_description:
-                        item.setBackground(QtGui.QColor(255, 0, 0))
+                        item.setBackground(QtGui.QColor(184, 0, 0))
                     item.details = lesson
                 item.setFlags(QtCore.Qt.ItemIsEnabled)
                 item.setTextAlignment(QtCore.Qt.AlignCenter)

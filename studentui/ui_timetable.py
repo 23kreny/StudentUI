@@ -3,7 +3,7 @@
 # Form implementation generated from reading ui file 'studentui/ui/timetable.ui',
 # licensing of 'studentui/ui/timetable.ui' applies.
 #
-# Created: Wed Dec 18 19:45:52 2019
+# Created: Wed Dec 25 10:55:59 2019
 #      by: pyside2-uic  running on PySide2 5.13.2
 #
 # WARNING! All changes made in this file will be lost!
