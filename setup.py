@@ -21,5 +21,5 @@ setup(
         "Operating System :: OS Independent",
     ],
     python_requires=">=3.6",
-    install_requires=["PySide2", "bakalib >= 1.0.5"],
+    install_requires=["PySide2", "bakalib >= 1.1.1"],
 )

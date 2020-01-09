@@ -4,15 +4,16 @@ import json
 from contextlib import contextmanager
 from enum import Enum
 
-from bakalib import version as bakalib_version
-from bakalib.core import Client
-from bakalib.extra import Municipality
-from bakalib.modules import Grades, Timetable
-from bakalib.utils import BakalibError
 from PySide2 import QtCore, QtGui, QtWidgets
 
+from bakalib import __version__ as bakalib_version
+from bakalib.core import Client
+from bakalib.extra import Municipality
+from bakalib.modules import GradesModule, TimetableModule
+from bakalib.utils import BakalibError
+
+from . import __version__ as studentui_version
 from . import paths
-from . import version as sui_version
 from .ui_grades import Ui_gradesWindow
 from .ui_login import Ui_loginDialog
 from .ui_selector import Ui_selectorWindow
@@ -43,11 +44,6 @@ class LoginDialog(QtWidgets.QDialog):
         self.ui = Ui_loginDialog()
         self.ui.setupUi(self)
 
-        try:
-            self.municipality = Municipality()
-        except BakalibError as error:
-            QtWidgets.QMessageBox.warning(None, "Error", f"{error}")
-
         self.clear()
 
         self.ui.showpassBox.clicked.connect(self.view_pass_handler)
@@ -65,9 +61,7 @@ class LoginDialog(QtWidgets.QDialog):
         self.view_pass_handler()
 
         self.ui.cityCombo.clear()
-        self.ui.cityCombo.addItems(
-            [city.name for city in self.municipality.municipality().cities]
-        )
+        self.ui.cityCombo.addItems([city.name for city in Municipality.cities()])
         self.ui.cityCombo.currentIndexChanged.connect(self.select_city_handler)
         self.select_city_handler()
         self.select_school_handler()
@@ -77,20 +71,17 @@ class LoginDialog(QtWidgets.QDialog):
         self.ui.schoolCombo.addItems(
             [
                 school.name
-                for school in self.municipality.municipality()
-                .cities[self.ui.cityCombo.currentIndex()]
-                .schools
+                for school in Municipality.schools(
+                    Municipality.cities()[self.ui.cityCombo.currentIndex()].name
+                )
             ]
         )
         self.ui.schoolCombo.currentIndexChanged.connect(self.select_school_handler)
 
     def select_school_handler(self):
-        self.domain = (
-            self.municipality.municipality()
-            .cities[self.ui.cityCombo.currentIndex()]
-            .schools[self.ui.schoolCombo.currentIndex()]
-            .domain
-        )
+        self.url = Municipality.schools(
+            Municipality.cities()[self.ui.cityCombo.currentIndex()].name
+        )[self.ui.schoolCombo.currentIndex()].url
 
     def view_pass_handler(self):
         shown = QtWidgets.QLineEdit.EchoMode.Normal
@@ -106,14 +97,14 @@ class LoginDialog(QtWidgets.QDialog):
             username = self.ui.lineUser.text()
             password = self.ui.linePass.text()
             with wait_cursor():
-                user = Client(username=username, domain=self.domain)
+                user = Client(username=username, url=self.url)
                 user.login(password=password)
             if self.ui.rememberBox.isChecked():
                 paths.auth_file.write_text(
                     json.dumps(
                         {
                             "username": user.username,
-                            "domain": user.domain,
+                            "url": user.url,
                             "perm_token": user.perm_token,
                         }
                     )
@@ -140,7 +131,7 @@ class SelectorWindow(QtWidgets.QMainWindow):
             self.login.show()
         else:
             auth_file = json.loads(paths.auth_file.read_text())
-            client = Client(username=auth_file["username"], domain=auth_file["domain"],)
+            client = Client(username=auth_file["username"], url=auth_file["url"],)
             self.run(client, auth_file["perm_token"])
 
     def run(self, client: Client, perm_token: str = None):
@@ -160,7 +151,7 @@ class SelectorWindow(QtWidgets.QMainWindow):
         )
         self.ui.pushLogout.clicked.connect(self.logout)
 
-        self.ui.labelSUIVersion.setText(f"StudentUI version: {sui_version}")
+        self.ui.labelSUIVersion.setText(f"StudentUI version: {studentui_version}")
         self.ui.labelBakalibVersion.setText(f"Bakalib version: {bakalib_version}")
 
         self.update_info(client.info())
@@ -177,6 +168,11 @@ class SelectorWindow(QtWidgets.QMainWindow):
         self.login.open()
         self.close()
 
+    def closeEvent(self, event):
+        self.grades_window.close()
+        self.timetable_window.close()
+        return super().closeEvent(event)
+
 
 class TimetableWindow(QtWidgets.QMainWindow):
     def __init__(self, parent=None, client: Client = None):
@@ -189,7 +185,7 @@ class TimetableWindow(QtWidgets.QMainWindow):
             QtWidgets.QAbstractScrollArea.AdjustToContents
         )
 
-        self.timetable = Timetable(client)
+        self.timetable = TimetableModule(client)
 
         self.ui.pushNext.clicked.connect(self.next)
         self.ui.pushPrev.clicked.connect(self.prev)
@@ -302,7 +298,7 @@ class GradesWindow(QtWidgets.QMainWindow):
         self.ui = Ui_gradesWindow()
         self.ui.setupUi(self)
 
-        self.grades = Grades(client)
+        self.grades = GradesModule(client)
 
         self.ui.treeGrades.itemClicked.connect(self.item_click)
         self.ui.radioSubj.clicked.connect(self.sort_subject)
@@ -319,10 +315,10 @@ class GradesWindow(QtWidgets.QMainWindow):
     def build_tree(self, order: Enum = Sort.by_subject):
         self.ui.treeGrades.clear()
         self.ui.listDetails.clear()
-        grades = self.grades.grades()
+        subjects = self.grades.subjects()
 
         if order == self.Sort.by_subject:
-            for subject in grades.subjects:
+            for subject in subjects:
                 item_subject = QtWidgets.QTreeWidgetItem(self.ui.treeGrades)
                 item_subject.setText(0, subject.name)
                 for grade in subject.grades:
@@ -331,7 +327,7 @@ class GradesWindow(QtWidgets.QMainWindow):
                     item_grade.details = grade
         elif order == self.Sort.by_date:
             unsorted_grades = []
-            for subject in grades.subjects:
+            for subject in subjects:
                 for grade in subject.grades:
                     item_grade = QtWidgets.QTreeWidgetItem()
                     item_grade.setText(0, grade.grade)
@@ -369,7 +365,7 @@ class GradesWindow(QtWidgets.QMainWindow):
             details = ["{}: {}".format(k, v) for k, v in details.items() if v]
             self.ui.listDetails.addItems(details)
         except AttributeError as e:
-            print("No attributes")
+            pass
 
 
 def main():
